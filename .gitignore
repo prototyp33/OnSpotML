@@ -1,0 +1,35 @@
+# Python Virtual Environment
+.venv/
+
+# IDE configuration files
+.vscode/
+.idea/
+
+# Python cache/compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Secrets (API keys, passwords - NEVER commit these!)
+*.env
+secrets.yaml
+
+# Large Data Files (Consider Git LFS: https://git-lfs.github.com/)
+# data/raw/large_dataset.csv
+# data/processed/large_geospatial_file.gpkg
+# *.shp
+# *.shx
+# *.dbf
+
+# Web Scraping Cache (if applicable)
+.scrapy/ # If using Scrapy
+cache/ 
