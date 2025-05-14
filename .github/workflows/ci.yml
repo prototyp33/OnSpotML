@@ -16,10 +16,10 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8, 3.9]
-      fail-fast: true
+      fail-fast: false
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for better git operations
     
@@ -30,7 +30,7 @@ jobs:
         cache: 'pip'
         
     - name: Cache pip packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ env.PIP_CACHE_DIR }}
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -62,28 +62,29 @@ jobs:
         pytest --cov=./ --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml
         
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         fail_ci_if_error: true
         
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: test-results-${{ matrix.python-version }}
         path: |
           test-results.xml
           bandit-results.json
           coverage.xml
 
   code-quality:
+    needs: test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v1.10
+      uses: SonarSource/sonarcloud-github-action@v1.9
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} 
