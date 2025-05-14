@@ -1,0 +1,42 @@
+
+Traffic Data Quality Report
+==========================
+Generated on: 2025-04-23 23:11:34.607644
+
+Dataset Overview:
+----------------
+- Total Records: 106,964,597
+- Date Range: 2022-01-01 00:00:00 to 2023-12-31 23:50:00
+- Number of Segments: 532
+- Memory Usage: 2040.19 MB
+
+Temporal Completeness:
+---------------------
+- Missing Dates: 31
+- 5-min Interval Consistency: 4 irregularities found
+
+Value Distribution:
+-----------------
+- Valid Status Values: 7 unique values
+- Invalid Status Values: 12221 records
+
+Spatial Coverage:
+---------------
+- Complete Segment Coverage: count                            532
+mean     729 days 03:26:21.766917296
+std        8 days 17:34:14.041627917
+min                639 days 13:55:00
+25%                729 days 23:50:00
+50%                729 days 23:50:00
+75%                729 days 23:50:00
+max                729 days 23:50:00
+dtype: object
+
+Data Consistency:
+---------------
+- Actual-Forecast Correlation: 0.908
+
+Quality Metrics:
+--------------
+- Data Completeness: 99.99%
+- Temporal Coverage: 95.75%
