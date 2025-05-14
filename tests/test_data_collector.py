@@ -3,6 +3,9 @@ from unittest.mock import patch, MagicMock
 import os
 from pathlib import Path
 import sys
+import shutil
+import tempfile
+import requests
 
 # Add src directory to sys.path to import the collector
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
@@ -13,8 +16,9 @@ class TestBarcelonaDataCollector(unittest.TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        self.test_base_dir = Path("./test_data_dir")
-        self.test_base_dir.mkdir(exist_ok=True)
+        # Use tempfile for test directory
+        self.test_dir = tempfile.mkdtemp()
+        self.test_base_dir = Path(self.test_dir)
         # Mock os.getenv to provide default API keys during tests
         self.env_patcher = patch.dict(os.environ, {
             'WEATHER_API_KEY': 'test_weather_key',
@@ -27,12 +31,9 @@ class TestBarcelonaDataCollector(unittest.TestCase):
     def tearDown(self):
         """Clean up test environment."""
         self.env_patcher.stop()
-        # Clean up created directories and files (implement properly)
-        # For now, just remove the base test dir if empty or handle cleanup
-        if self.test_base_dir.exists():
-             # Be careful with recursive deletion in real tests
-             # shutil.rmtree(self.test_base_dir) 
-             pass # Basic cleanup for now
+        # Clean up the temporary directory
+        if self.test_dir and os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
 
     def test_initialization(self):
         """Test if the collector initializes correctly."""
@@ -78,7 +79,7 @@ class TestBarcelonaDataCollector(unittest.TestCase):
         
         self.assertIsNone(filepath)
         # Check if requests.get was called multiple times (retries)
-        self.assertEqual(mock_get.call_count, self.collector.DOWNLOAD_RETRIES) # Assuming DOWNLOAD_RETRIES is accessible or hardcode 3
+        self.assertEqual(mock_get.call_count, self.collector.DOWNLOAD_RETRIES)
 
     # Add more tests for:
     # - Fallback mechanism in download_file
