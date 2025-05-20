@@ -2,6 +2,13 @@
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "onspotml"
+version = "0.1.0"
+description = "Machine Learning project for parking spot prediction"
+requires-python = ">=3.8"
+readme = "README.md"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
