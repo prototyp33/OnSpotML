@@ -1,0 +1,5 @@
+stop_id,stop_name,stop_lat,stop_lon,zone_id,stop_url,location_type,parent_station
+S1,Stop 1 Name,41.390205,-73.984472,A,,0,
+S2,Stop 2 Name,41.391205,-73.985472,B,,0,
+S3,Stop 3 Name,40.758896,-73.985130,C,,0,P1
+P1,Parent Station 1,,,,,1,

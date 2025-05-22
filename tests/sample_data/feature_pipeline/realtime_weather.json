@@ -1,0 +1,87 @@
+{
+  "location": {
+    "name": "Test City",
+    "region": "Test Region",
+    "country": "Test Country",
+    "lat": 40.41,
+    "lon": -3.7,
+    "tz_id": "Europe/Madrid",
+    "localtime_epoch": 1678886400,
+    "localtime": "2023-03-15 12:00"
+  },
+  "current": {
+    "last_updated_epoch": 1678882800,
+    "last_updated": "2023-03-15 11:00",
+    "temp_c": 15.0,
+    "is_day": 1,
+    "condition": {
+      "text": "Sunny",
+      "icon": "//cdn.weatherapi.com/weather/64x64/day/113.png",
+      "code": 1000
+    },
+    "wind_kph": 10.0,
+    "precip_mm": 0.0,
+    "humidity": 60,
+    "cloud": 5
+  },
+  "forecast": {
+    "forecastday": [
+      {
+        "date": "2023-03-15",
+        "date_epoch": 1678838400,
+        "day": {
+          "maxtemp_c": 20.0,
+          "mintemp_c": 10.0,
+          "avgtemp_c": 15.0,
+          "maxwind_kph": 15.0,
+          "totalprecip_mm": 0.0,
+          "avghumidity": 55.0,
+          "condition": {
+            "text": "Sunny",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/113.png",
+            "code": 1000
+          }
+        },
+        "astro": {
+          "sunrise": "07:30 AM",
+          "sunset": "07:30 PM"
+        },
+        "hour": [
+          {
+            "time_epoch": 1678863600,
+            "time": "2023-03-15 08:00",
+            "temp_c": 12.0,
+            "is_day": 1,
+            "condition": {"text": "Sunny", "code": 1000},
+            "wind_kph": 8.0,
+            "precip_mm": 0.0,
+            "humidity": 65,
+            "cloud": 0
+          },
+          {
+            "time_epoch": 1678867200,
+            "time": "2023-03-15 09:00",
+            "temp_c": 14.0,
+            "is_day": 1,
+            "condition": {"text": "Sunny", "code": 1000},
+            "wind_kph": 9.0,
+            "precip_mm": 0.0,
+            "humidity": 60,
+            "cloud": 5
+          },
+          {
+            "time_epoch": 1678870800,
+            "time": "2023-03-15 10:00",
+            "temp_c": 16.0,
+            "is_day": 1,
+            "condition": {"text": "Partly cloudy", "code": 1003},
+            "wind_kph": 10.0,
+            "precip_mm": 0.0,
+            "humidity": 55,
+            "cloud": 20
+          }
+        ]
+      }
+    ]
+  }
+}
