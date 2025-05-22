@@ -32,20 +32,30 @@ ENV/
 .vscode/
 *.swp
 *.swo
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Project specific
-data/raw/
-data/interim/
-data/processed/
-data/external/
-data/cleaned/
-*.parquet
-*.csv
-*.pbf
-*.osm
-*.ics
-test-results.xml
+data/config/
+data/figures/
+data/gtfs/
+data/parking/
+data/transport/
+data/weather/
+models/baseline/
+reports/eda/
+reports/figures/
+reports/metrics/
+reports/visualizations/
+*.log
+pass.json
 
 # Logs
 *.log
@@ -81,14 +91,6 @@ secrets.yaml
 # Web Scraping Cache (if applicable)
 .scrapy/ # If using Scrapy
 cache/ 
-
-# OS generated files
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Coverage reports
 htmlcov/
