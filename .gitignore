@@ -1,31 +1,68 @@
-# Python Virtual Environment
-.venv/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.env
+.venv
+env/
 venv/
 ENV/
 
-# IDE configuration files
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
+.DS_Store
 
-# Python cache/compiled files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
+# Project specific
+data/raw/
+data/interim/
+data/processed/
+data/external/
+data/cleaned/
+*.parquet
+*.csv
+*.pbf
+*.osm
+*.ics
+test-results.xml
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
+# Logs
+*.log
+logs/
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
-*.egg
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
 
 # Secrets (API keys, passwords - NEVER commit these!)
 *.env
@@ -45,14 +82,7 @@ secrets.yaml
 .scrapy/ # If using Scrapy
 cache/ 
 
-# Logs and databases
-logs/
-*.log
-*.sqlite
-*.db
-
 # OS generated files
-.DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100

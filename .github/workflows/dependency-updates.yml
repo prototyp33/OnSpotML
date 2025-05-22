@@ -1,0 +1,44 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sunday
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: Install pip-tools
+      run: pip install pip-tools
+        
+    - name: Check for updates
+      run: |
+        pip-compile --upgrade requirements.txt -o requirements.txt.new
+        if ! cmp -s requirements.txt requirements.txt.new; then
+          echo "Updates found"
+          exit 1
+        fi
+        
+    - name: Create Pull Request
+      if: failure()
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update dependencies'
+        title: 'chore: update dependencies'
+        body: |
+          Automated dependency updates:
+          
+          - Updated requirements.txt
+          - Please review the changes before merging
+        branch: 'chore/update-dependencies'
+        base: 'develop' 

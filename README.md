@@ -1,57 +1,116 @@
-# Barcelona Data Collection Module
+# OnSpotML - Barcelona Parking Prediction
 
-This module provides functionality to collect and integrate various types of data from Barcelona's open data sources and APIs.
+A machine learning project for predicting parking availability in Barcelona using various data sources including traffic data, POI information, and historical parking patterns.
 
-## Features
+## 🚀 Features
 
-- Collects parking data from Barcelona's open data portal
-- Fetches weather data from Meteocat API
-- Downloads transport data from TMB (Barcelona's public transport)
-- Gathers event data from Barcelona's open data portal
-- Integrates collected data into a unified dataset
+- Real-time parking availability prediction
+- Integration with Barcelona's traffic data
+- Point of Interest (POI) analysis
+- Historical pattern analysis
+- Temporal and spatial feature engineering
+- Baseline and advanced ML models
 
-## Installation
+## 📋 Prerequisites
 
-1. Clone this repository
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Python 3.8+
+- Git LFS (for large file handling)
+- Virtual environment (recommended)
 
-## Configuration
+## 🛠️ Installation
 
-**IMPORTANT:** This script requires API keys for TMB (Transport) and WeatherAPI.com (Weather) to function correctly. Configuration is handled via two files:
+1. Clone the repository:
+```bash
+git clone https://github.com/prototyp33/OnSpotML.git
+cd OnSpotML
+```
 
-1.  **`pass.json` (for TMB Credentials):**
-    *   Create a file named `pass.json` in the project root.
-    *   Use the following structure, replacing the placeholders in the `"local"` section with your actual TMB App ID and Key obtained from the [TMB Developer Portal](https://www.tmb.cat/en/dades-obertes):
-    ```json
-    {
-      "github": {
-        "app_key": "d9905ec9b70bc6aca11e39be3cd0d856",
-        "app_id": "df5c473f"
-      },
-      "local": {
-        "app_key": "YOUR_VALID_TMB_KEY",
-        "app_id": "YOUR_VALID_TMB_ID"
-      }
-    }
-    ```
+2. Install Git LFS:
+```bash
+git lfs install
+```
 
-2.  **`.env` (for WeatherAPI Key & BCN Token):**
-    *   Create a file named `.env` in the project root.
-    *   Add your WeatherAPI key obtained from [WeatherAPI.com](https://www.weatherapi.com/).
-    *   Add your Open Data BCN Access Token (if required for certain datasets, obtain from the portal after registration).
-    ```dotenv
-    # .env file
-    WEATHER_API_KEY=YOUR_VALID_WEATHERAPI_KEY
-    BCN_OD_TOKEN=YOUR_BCN_OPEN_DATA_ACCESS_TOKEN
-    ```
+3. Create and activate virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
 
-The script will validate these configuration files on startup and will raise an error if they are missing or incorrectly formatted.
+4. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-## Usage
-
-To collect all data:
+## 📁 Project Structure
 
 ```
+OnSpotML/
+├── data/               # Data directory
+│   ├── raw/           # Raw data
+│   ├── processed/     # Processed data
+│   ├── external/      # External data sources
+│   └── interim/       # Intermediate data
+├── notebooks/         # Jupyter notebooks
+├── src/              # Source code
+│   ├── data_ingestion/    # Data collection
+│   ├── data_processing/   # Data processing
+│   ├── features/          # Feature engineering
+│   ├── modeling/          # ML models
+│   └── visualization/     # Visualization tools
+├── tests/            # Test files
+├── docs/             # Documentation
+└── reports/          # Generated reports
+```
+
+## 🚀 Usage
+
+1. Data Collection:
+```bash
+python src/data_ingestion/barcelona_data_collector.py
+```
+
+2. Feature Engineering:
+```bash
+python src/features/build_features.py
+```
+
+3. Model Training:
+```bash
+python src/modeling/train_baseline.py
+```
+
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📊 Project Status
+
+🚧 Under Development
+
+## 🔄 Development Workflow
+
+1. Create a feature branch from `develop`
+2. Make your changes
+3. Write/update tests
+4. Create a pull request
+5. Get code review
+6. Merge to `develop`
+7. Deploy to staging (if applicable)
+8. Merge to `main` for production
+
+## 📈 Future Improvements
+
+- [ ] Add more advanced ML models
+- [ ] Implement real-time prediction API
+- [ ] Add more data sources
+- [ ] Improve feature engineering
+- [ ] Add model monitoring
+- [ ] Implement A/B testing framework
+
+## 📞 Support
+
+For support, please open an issue in the GitHub repository.
