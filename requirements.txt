@@ -112,3 +112,6 @@ webcolors==24.11.1
 webencodings==0.5.1
 websocket-client==1.8.0
 python-dotenv==1.0.1
+pyarrow>=10.0.0  # Good version for parquet support
+holidays>=0.20    # Recent version of holidays
+pytest>=7.0.0     # Recent version of pytest
