@@ -12,6 +12,7 @@ import json
 from dotenv import load_dotenv
 import numpy as np
 from shapely.geometry import LineString
+from open_meteo_fetcher import OpenMeteoFetcher  # Import our new weather fetcher
 
 # Configure logging
 logging.basicConfig(
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 def validate_credentials():
-    """Check for pass.json (TMB), BCN_OD_TOKEN (env), and WEATHER_API_KEY (env)."""
+    """Check for pass.json (TMB) and BCN_OD_TOKEN (env). Weather API no longer needed."""
     pass_json_path = Path("pass.json")
     missing = []
     valid_pass_json = False
@@ -47,10 +48,7 @@ def validate_credentials():
         except Exception as e:
              missing.append(f"Error reading pass.json: {e}")
 
-    # Check for Weather API key in environment
-    if not os.getenv('WEATHER_API_KEY'):
-        missing.append("WEATHER_API_KEY environment variable (for WeatherAPI.com)")
-
+    # Weather API key no longer required (using free Open-Meteo)
     # Check for BCN Open Data Token in environment
     if not os.getenv('BCN_OD_TOKEN'):
         missing.append("BCN_OD_TOKEN environment variable (for Open Data BCN)")
@@ -86,7 +84,7 @@ class BarcelonaDataCollector:
             logger.info(f"Created directory: {self.base_dir / dir_name}")
     
     def _load_config(self):
-        """Load TMB config from pass.json; Weather & BCN Token from env vars."""
+        """Load TMB config from pass.json; BCN Token from env vars. Weather API no longer needed."""
         tmb_app_id = None
         tmb_app_key = None
         pass_json_path = Path("pass.json")
@@ -109,20 +107,22 @@ class BarcelonaDataCollector:
         else:
              logger.error("pass.json not found. TMB API calls will fail.")
 
-        # Load Weather key from environment
-        weather_api_key = os.getenv('WEATHER_API_KEY')
+        # Weather API key no longer needed (using free Open-Meteo)
         # Load BCN Open Data Token from environment
         bcn_od_token = os.getenv('BCN_OD_TOKEN')
 
         self.config = {
-            'weather_api_key': weather_api_key,
             'tmb_app_id': tmb_app_id,      
             'tmb_app_key': tmb_app_key,     
             'bcn_od_token': bcn_od_token
         }
+        
+        # Initialize Open-Meteo weather fetcher
+        self.weather_fetcher = OpenMeteoFetcher()
+        
         logger.info(f"Loaded config - TMB App ID from pass.json: {bool(self.config['tmb_app_id'])}")
-        logger.info(f"Loaded config - Weather API Key from .env: {bool(self.config['weather_api_key'])}")
         logger.info(f"Loaded config - BCN Open Data Token from .env: {bool(self.config['bcn_od_token'])}")
+        logger.info("Initialized Open-Meteo weather fetcher (free, no API key required)")
     
     def _validate_csv(self, filepath: Path, expected_columns: Optional[list] = None) -> bool:
         """Validate a downloaded CSV file."""
@@ -387,52 +387,54 @@ class BarcelonaDataCollector:
             
         return downloaded_files
     
-    def get_weather_data(self, include_realtime: bool = False) -> Dict[str, Optional[Path]]:
-        """Collect weather data from WeatherAPI.com."""
-        logger.info("Starting weather data collection")
+    def get_weather_data(self, include_forecast: bool = True, include_historical: bool = True) -> Dict[str, Optional[Path]]:
+        """Collect weather data using Open-Meteo API (free, no API key required)."""
+        logger.info("Starting weather data collection using Open-Meteo API")
         downloaded_files = {}
         
-        # Historical weather data
-        hist_weather_url = "https://opendata-ajuntament.barcelona.cat/data/dataset/00904de2-8660-4c41-92e3-66e7c87265be/resource/c6c07ed8-d890-4b94-bcac-8fbd920e69ea/download"
-        filepath = self.download_file(hist_weather_url, "historical_weather.csv", 'weather')
-        if filepath:
-            downloaded_files['historical_weather.csv'] = filepath
-        
-        # Real-time weather data from WeatherAPI.com
-        if self.config['weather_api_key'] and include_realtime:
-            try:
-                # Barcelona coordinates
-                lat, lon = 41.3851, 2.1734
+        try:
+            # Current weather data
+            current_weather = self.weather_fetcher.get_current_weather()
+            if current_weather:
+                current_filepath = self.base_dir / 'weather' / 'current_weather.json'
+                self.weather_fetcher.save_weather_data(current_weather, current_filepath, "current")
+                downloaded_files['current_weather.json'] = current_filepath
+                logger.info(f"Current weather: {current_weather['temperature_c']}°C, {current_weather['humidity']}% humidity")
+            
+            # Forecast data (next 24 hours)
+            if include_forecast:
+                forecast_data = self.weather_fetcher.get_forecast_weather(hours=24)
+                if forecast_data is not None:
+                    forecast_filepath = self.base_dir / 'weather' / 'forecast_weather.csv'
+                    self.weather_fetcher.save_weather_data(forecast_data, forecast_filepath, "forecast")
+                    downloaded_files['forecast_weather.csv'] = forecast_filepath
+                    logger.info(f"Forecast weather: {len(forecast_data)} hours of data")
+            
+            # Historical weather data (last 30 days for recent patterns)
+            if include_historical:
+                end_date = datetime.now().date() - timedelta(days=1)  # Yesterday
+                start_date = end_date - timedelta(days=30)  # Last 30 days
                 
-                # Get current weather
-                current_url = f"http://api.weatherapi.com/v1/current.json?key={self.config['weather_api_key']}&q={lat},{lon}"
-                response = requests.get(current_url, timeout=30)
-                response.raise_for_status()
-                
-                current_weather = response.json()
-                
-                # Get forecast
-                forecast_url = f"http://api.weatherapi.com/v1/forecast.json?key={self.config['weather_api_key']}&q={lat},{lon}&days=3"
-                response = requests.get(forecast_url, timeout=30)
-                response.raise_for_status()
-                
-                forecast = response.json()
-                
-                # Combine current and forecast data
-                weather_data = {
-                    'current': current_weather['current'],
-                    'forecast': forecast['forecast']
-                }
-                
-                filepath = self.base_dir / 'weather' / 'realtime_weather.json'
-                with open(filepath, 'w') as f:
-                    json.dump(weather_data, f, indent=2)
-                
-                downloaded_files['realtime_weather.json'] = filepath
-                logger.info("Successfully downloaded weather data from WeatherAPI.com")
-                
-            except Exception as e:
-                logger.error(f"Error fetching weather data from WeatherAPI.com: {str(e)}")
+                historical_data = self.weather_fetcher.get_historical_weather(
+                    start_date.strftime("%Y-%m-%d"),
+                    end_date.strftime("%Y-%m-%d")
+                )
+                if historical_data is not None:
+                    historical_filepath = self.base_dir / 'weather' / 'historical_weather_recent.csv'
+                    self.weather_fetcher.save_weather_data(historical_data, historical_filepath, "historical")
+                    downloaded_files['historical_weather_recent.csv'] = historical_filepath
+                    logger.info(f"Recent historical data: {len(historical_data)} hours")
+            
+            # Create comprehensive weather summary
+            weather_summary = self.weather_fetcher.get_weather_summary()
+            summary_filepath = self.base_dir / 'weather' / 'weather_summary.json'
+            self.weather_fetcher.save_weather_data(weather_summary, summary_filepath, "summary")
+            downloaded_files['weather_summary.json'] = summary_filepath
+            
+            logger.info("Successfully collected weather data using Open-Meteo API")
+            
+        except Exception as e:
+            logger.error(f"Error collecting weather data from Open-Meteo: {str(e)}")
         
         return downloaded_files
     
@@ -646,7 +648,7 @@ class BarcelonaDataCollector:
         collected_data_paths: Dict[str, Any] = {}
 
         collected_data_paths["parking"] = self.get_parking_data()
-        collected_data_paths["weather"] = self.get_weather_data(include_realtime=include_realtime_weather)
+        collected_data_paths["weather"] = self.get_weather_data(include_forecast=True, include_historical=True)
         collected_data_paths["transport"] = self.get_transport_data()
         collected_data_paths["events"] = self.get_events_data()
         # Add the new geometry collection method here if desired to run with "all"
@@ -681,7 +683,7 @@ def main():
         parking_files = collector.get_parking_data()
         
         logger.info("\n=== Downloading weather data ===")
-        weather_files = collector.get_weather_data()
+        weather_files = collector.get_weather_data(include_forecast=True, include_historical=True)
         
         logger.info("\n=== Downloading transport data ===")
         transport_files = collector.get_transport_data()
