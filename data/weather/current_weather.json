@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-06-01T17:00",
+  "temperature_c": 25.0,
+  "humidity": 62,
+  "apparent_temperature_c": 25.9,
+  "precipitation_mm": 0.0,
+  "rain_mm": 0.0,
+  "wind_speed_kmh": 16.5,
+  "wind_direction": 212,
+  "pressure_hpa": 1016.6,
+  "cloud_cover": 41,
+  "weather_code": 1,
+  "is_day": 1,
+  "source": "open-meteo"
+}

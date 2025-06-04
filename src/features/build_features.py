@@ -86,9 +86,10 @@ def save_data(df: Union[pd.DataFrame, gpd.GeoDataFrame], filepath: Path, file_ty
 
 def create_temporal_features(df_in: pd.DataFrame, timestamp_col: str) -> pd.DataFrame:
     """Create time-based features (hour, day of week, month, cyclical).
+       Enhanced with 30-minute intervals, school holidays, business hours, and bridge days.
        Returns a DataFrame with only the new temporal features and the original index.
     """
-    logger.info(f"Creating temporal features based on column: {timestamp_col}")
+    logger.info(f"Creating enhanced temporal features based on column: {timestamp_col}")
     if timestamp_col not in df_in.columns:
          logger.error(f"Timestamp column '{timestamp_col}' not found.")
          return pd.DataFrame(index=df_in.index) 
@@ -99,6 +100,7 @@ def create_temporal_features(df_in: pd.DataFrame, timestamp_col: str) -> pd.Data
         # Work on a Series for dt accessor
         dt_series = pd.to_datetime(df_in[timestamp_col])
 
+        # Basic temporal features
         df_temporal['hour'] = dt_series.dt.hour
         df_temporal['day_of_week'] = dt_series.dt.dayofweek
         df_temporal['day_of_month'] = dt_series.dt.day
@@ -107,21 +109,40 @@ def create_temporal_features(df_in: pd.DataFrame, timestamp_col: str) -> pd.Data
         df_temporal['is_weekend'] = df_temporal['day_of_week'].isin([5, 6]).astype(int)
         df_temporal['is_weekday'] = (~df_temporal['day_of_week'].isin([5, 6])).astype(int)
 
+        # 30-minute interval features
+        df_temporal['minute'] = dt_series.dt.minute
+        df_temporal['half_hour_interval'] = (df_temporal['hour'] * 2 + (df_temporal['minute'] >= 30)).astype(int)
+        df_temporal['is_half_hour'] = (df_temporal['minute'] >= 30).astype(int)
+        
+        # Business hours classification (9:00-18:00 weekdays)
+        business_hours = (df_temporal['hour'] >= 9) & (df_temporal['hour'] < 18) & (df_temporal['is_weekday'] == 1)
+        df_temporal['is_business_hours'] = business_hours.astype(int)
+        df_temporal['is_peak_morning'] = ((df_temporal['hour'] >= 8) & (df_temporal['hour'] <= 10) & (df_temporal['is_weekday'] == 1)).astype(int)
+        df_temporal['is_peak_evening'] = ((df_temporal['hour'] >= 17) & (df_temporal['hour'] <= 19) & (df_temporal['is_weekday'] == 1)).astype(int)
+        df_temporal['is_lunch_time'] = ((df_temporal['hour'] >= 13) & (df_temporal['hour'] <= 15)).astype(int)
+
+        # Cyclical encoding
         df_temporal['hour_sin'] = np.sin(2 * np.pi * df_temporal['hour'] / 24.0)
         df_temporal['hour_cos'] = np.cos(2 * np.pi * df_temporal['hour'] / 24.0)
         df_temporal['day_of_week_sin'] = np.sin(2 * np.pi * df_temporal['day_of_week'] / 7.0)
         df_temporal['day_of_week_cos'] = np.cos(2 * np.pi * df_temporal['day_of_week'] / 7.0)
         df_temporal['month_sin'] = np.sin(2 * np.pi * (df_temporal['month'] - 1) / 12.0)
         df_temporal['month_cos'] = np.cos(2 * np.pi * (df_temporal['month'] - 1) / 12.0)
+        
+        # 30-minute cyclical encoding
+        df_temporal['half_hour_sin'] = np.sin(2 * np.pi * df_temporal['half_hour_interval'] / 48.0)
+        df_temporal['half_hour_cos'] = np.cos(2 * np.pi * df_temporal['half_hour_interval'] / 48.0)
 
         df_temporal['day_of_year'] = dt_series.dt.dayofyear
         df_temporal['week_of_year'] = dt_series.dt.isocalendar().week.astype(int)
         df_temporal['quarter'] = dt_series.dt.quarter
 
-        time_bins = [0, 6, 12, 18, 24]
-        time_labels = ['night', 'morning', 'afternoon', 'evening']
+        # Enhanced time of day segments (30-minute precision)
+        time_bins = [0, 6, 9, 12, 14, 18, 21, 24]
+        time_labels = ['night', 'early_morning', 'morning', 'midday', 'afternoon', 'evening', 'late_evening']
         df_temporal['time_of_day_segment'] = pd.cut(df_temporal['hour'], bins=time_bins, labels=time_labels, right=False, include_lowest=True)
 
+        # Public holidays
         unique_years = df_temporal['year'].unique()
         try:
             # Using normalize() on the dt_series to compare dates correctly
@@ -137,58 +158,218 @@ def create_temporal_features(df_in: pd.DataFrame, timestamp_col: str) -> pd.Data
             logger.error(f"Error fetching holidays: {holiday_e}", exc_info=True)
             df_temporal['is_public_holiday'] = 0 
 
-        logger.info("Temporal features created.")
+        # Barcelona school holidays (approximate dates - would need to be updated yearly)
+        def is_school_holiday(date):
+            """Determine if a date falls during Barcelona school holidays"""
+            month = date.month
+            day = date.day
+            
+            # Christmas holidays (Dec 22 - Jan 7)
+            if (month == 12 and day >= 22) or (month == 1 and day <= 7):
+                return True
+            # Easter holidays (varies, approximate: March 25 - April 8)
+            elif month == 3 and day >= 25:
+                return True
+            elif month == 4 and day <= 8:
+                return True
+            # Summer holidays (June 23 - September 10)
+            elif (month == 6 and day >= 23) or month in [7, 8] or (month == 9 and day <= 10):
+                return True
+            # Winter holidays (February 10-14, approximate)
+            elif month == 2 and 10 <= day <= 14:
+                return True
+            else:
+                return False
+        
+        df_temporal['is_school_holiday'] = dt_series.dt.date.apply(is_school_holiday).astype(int)
+        
+        # Bridge days (days between holidays and weekends)
+        df_temporal['is_bridge_day'] = 0
+        for i in range(len(df_temporal)):
+            current_date = dt_series.iloc[i].date()
+            # Check if it's a Friday before a weekend when Monday is a holiday
+            # Or a Monday after a weekend when Friday was a holiday
+            # This is simplified - more complex logic could be added
+            if df_temporal['day_of_week'].iloc[i] == 4:  # Friday
+                # Check if next Monday (3 days later) is a holiday
+                monday_date = current_date + pd.Timedelta(days=3)
+                if monday_date in country_holidays:
+                    df_temporal['is_bridge_day'].iloc[i] = 1
+            elif df_temporal['day_of_week'].iloc[i] == 0:  # Monday  
+                # Check if previous Friday (3 days earlier) was a holiday
+                friday_date = current_date - pd.Timedelta(days=3)
+                if friday_date in country_holidays:
+                    df_temporal['is_bridge_day'].iloc[i] = 1
+
+        logger.info("Enhanced temporal features created with 30-minute granularity, school holidays, and business hours.")
         return df_temporal
     except Exception as e:
          logger.error(f"Error creating temporal features: {e}", exc_info=True)
          return pd.DataFrame(index=df_in.index)
 
-def create_weather_features(weather_data: dict, target_timestamps_df: pd.DataFrame, timestamp_col:str = 'timestamp') -> pd.DataFrame:
+def create_weather_features(weather_data: Union[dict, pd.DataFrame], target_timestamps_df: pd.DataFrame, timestamp_col: str = 'timestamp') -> pd.DataFrame:
     """Extract relevant weather features and align with target timestamps DataFrame.
+       Now supports both Open-Meteo format (CSV/dict) and legacy WeatherAPI format.
        Returns a DataFrame with new weather features, indexed like target_timestamps_df.
     """
     logger.info("Processing weather features...")
     
-    if not weather_data or 'forecast' not in weather_data or 'forecastday' not in weather_data['forecast']:
-        logger.warning("Weather data is missing or not in the expected format. Returning empty DataFrame.")
+    # Handle different weather data formats
+    weather_df = None
+    
+    # Case 1: DataFrame (Open-Meteo CSV format)
+    if isinstance(weather_data, pd.DataFrame):
+        logger.info("Processing Open-Meteo DataFrame format")
+        weather_df = weather_data.copy()
+        
+        # Map Open-Meteo columns to standard names
+        column_mapping = {
+            'datetime': 'weather_timestamp',
+            'temperature_c': 'temp_c',
+            'precipitation_mm': 'precip_mm',
+            'wind_speed_kmh': 'wind_kph',
+            'humidity': 'humidity',
+            'cloud_cover': 'cloud_cover',
+            'pressure_hpa': 'pressure_hpa',
+            'weather_code': 'weather_code'
+        }
+        
+        # Rename columns if they exist
+        for old_col, new_col in column_mapping.items():
+            if old_col in weather_df.columns:
+                weather_df = weather_df.rename(columns={old_col: new_col})
+        
+        # Convert weather_code to condition text (simplified mapping)
+        if 'weather_code' in weather_df.columns:
+            weather_code_map = {
+                0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+                45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
+                55: "Dense drizzle", 56: "Light freezing drizzle", 57: "Dense freezing drizzle",
+                61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain", 66: "Light freezing rain",
+                67: "Heavy freezing rain", 71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+                77: "Snow grains", 80: "Slight rain showers", 81: "Moderate rain showers",
+                82: "Violent rain showers", 85: "Slight snow showers", 86: "Heavy snow showers",
+                95: "Thunderstorm", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail"
+            }
+            weather_df['condition_text'] = weather_df['weather_code'].map(weather_code_map).fillna("Unknown")
+            
+            # Add weather severity classification
+            def classify_weather_severity(code):
+                if pd.isna(code):
+                    return "unknown"
+                elif code in [0, 1]:  # Clear sky, mainly clear
+                    return "excellent"
+                elif code in [2, 3]:  # Partly cloudy, overcast
+                    return "good"
+                elif code in [45, 48, 51, 53, 55]:  # Fog, light drizzle
+                    return "fair"
+                elif code in [56, 57, 61, 63, 71, 73, 80]:  # Moderate rain/snow
+                    return "poor"
+                elif code in [65, 67, 75, 77, 81, 82, 85, 86]:  # Heavy rain/snow
+                    return "severe"
+                elif code in [95, 96, 99]:  # Thunderstorms
+                    return "extreme"
+                else:
+                    return "unknown"
+            
+            weather_df['weather_severity'] = weather_df['weather_code'].apply(classify_weather_severity)
+            
+            # Add thunderstorm detection (binary)
+            weather_df['is_thunderstorm'] = (weather_df['weather_code'] >= 95).astype(int)
+            
+            # Add adverse weather detection (poor conditions or worse)
+            severe_codes = [65, 67, 75, 77, 81, 82, 85, 86, 95, 96, 99]
+            weather_df['is_adverse_weather'] = weather_df['weather_code'].isin(severe_codes).astype(int)
+        
+        # Map sunshine duration if available
+        if 'sunshine_duration' in weather_df.columns:
+            weather_df = weather_df.rename(columns={'sunshine_duration': 'sunshine_duration_min'})
+    
+    # Case 2: Dictionary (Open-Meteo summary or legacy WeatherAPI format)
+    elif isinstance(weather_data, dict):
+        # Check if it's Open-Meteo summary format
+        if 'current' in weather_data and 'forecast_24h' in weather_data:
+            logger.info("Processing Open-Meteo summary format")
+            hourly_data = []
+            
+            # Add current weather as first entry
+            if weather_data['current']:
+                current = weather_data['current'].copy()
+                if 'timestamp' in current:
+                    current['weather_timestamp'] = current['timestamp']
+                hourly_data.append(current)
+            
+            # Add forecast data
+            if weather_data['forecast_24h']:
+                for hour_data in weather_data['forecast_24h']:
+                    if 'datetime' in hour_data:
+                        hour_data['weather_timestamp'] = hour_data['datetime']
+                    hourly_data.append(hour_data)
+            
+            if hourly_data:
+                weather_df = pd.DataFrame(hourly_data)
+                # Apply same column mapping as above
+                column_mapping = {
+                    'temperature_c': 'temp_c',
+                    'precipitation_mm': 'precip_mm',
+                    'wind_speed_kmh': 'wind_kph',
+                    'humidity': 'humidity',
+                    'cloud_cover': 'cloud_cover',
+                    'pressure_hpa': 'pressure_hpa',
+                    'weather_code': 'weather_code'
+                }
+                for old_col, new_col in column_mapping.items():
+                    if old_col in weather_df.columns:
+                        weather_df = weather_df.rename(columns={old_col: new_col})
+        
+        # Legacy WeatherAPI.com format
+        elif 'forecast' in weather_data and 'forecastday' in weather_data['forecast']:
+            logger.info("Processing legacy WeatherAPI format")
+            hourly_data = []
+            for day_forecast in weather_data['forecast']['forecastday']:
+                for hour_data in day_forecast.get('hour', []):
+                    hourly_data.append(hour_data)
+
+            if hourly_data:
+                weather_df = pd.DataFrame(hourly_data)
+                feature_map = {
+                    'time': 'weather_timestamp', 'temp_c': 'temp_c', 'precip_mm': 'precip_mm',
+                    'wind_kph': 'wind_kph', 'humidity': 'humidity', 'cloud': 'cloud_cover'
+                }
+                weather_df['condition_text'] = weather_df['condition'].apply(lambda x: x.get('text') if isinstance(x, dict) else None)
+                weather_df = weather_df.rename(columns=feature_map)
+        else:
+            logger.warning("Weather data format not recognized. Returning empty DataFrame.")
+            return pd.DataFrame(index=target_timestamps_df.index)
+    else:
+        logger.warning("Weather data is not in expected format (DataFrame or dict). Returning empty DataFrame.")
         return pd.DataFrame(index=target_timestamps_df.index)
 
-    hourly_data = []
-    for day_forecast in weather_data['forecast']['forecastday']:
-        for hour_data in day_forecast.get('hour', []):
-            hourly_data.append(hour_data)
-
-    if not hourly_data:
-        logger.warning("No hourly weather data found in the forecast. Returning empty DataFrame.")
+    if weather_df is None or weather_df.empty:
+        logger.warning("No weather data could be processed. Returning empty DataFrame.")
         return pd.DataFrame(index=target_timestamps_df.index)
 
-    weather_df = pd.DataFrame(hourly_data)
+    # Ensure we have a timestamp column
+    if 'weather_timestamp' not in weather_df.columns:
+        logger.error("No timestamp column found in weather data. Returning empty DataFrame.")
+        return pd.DataFrame(index=target_timestamps_df.index)
 
     try:
-        weather_df['time'] = pd.to_datetime(weather_df['time'])
+        weather_df['weather_timestamp'] = pd.to_datetime(weather_df['weather_timestamp'])
         
-        # ---- TIMEZONE HANDLING for weather_df['time'] ----
-        if weather_df['time'].dt.tz is None:
+        # ---- TIMEZONE HANDLING for weather_df['weather_timestamp'] ----
+        if weather_df['weather_timestamp'].dt.tz is None:
             logger.info("Weather timestamps are naive. Localizing to 'Europe/Madrid'.")
-            weather_df['time'] = weather_df['time'].dt.tz_localize('Europe/Madrid', ambiguous='infer', nonexistent='NaT')
-        elif str(weather_df['time'].dt.tz) != 'Europe/Madrid':
-            logger.info(f"Weather timestamps are timezone-aware ({weather_df['time'].dt.tz}). Converting to 'Europe/Madrid'.")
-            weather_df['time'] = weather_df['time'].dt.tz_convert('Europe/Madrid')
+            weather_df['weather_timestamp'] = weather_df['weather_timestamp'].dt.tz_localize('Europe/Madrid', ambiguous='infer', nonexistent='NaT')
+        elif str(weather_df['weather_timestamp'].dt.tz) != 'Europe/Madrid':
+            logger.info(f"Weather timestamps are timezone-aware ({weather_df['weather_timestamp'].dt.tz}). Converting to 'Europe/Madrid'.")
+            weather_df['weather_timestamp'] = weather_df['weather_timestamp'].dt.tz_convert('Europe/Madrid')
         # ---- END TIMEZONE HANDLING ----
 
     except Exception as e:
-        logger.error(f"Error converting or localizing weather 'time' to datetime: {e}. Returning empty DataFrame.", exc_info=True)
+        logger.error(f"Error converting or localizing weather 'weather_timestamp' to datetime: {e}. Returning empty DataFrame.", exc_info=True)
         return pd.DataFrame(index=target_timestamps_df.index)
 
-    feature_map = {
-        'time': 'weather_timestamp', 'temp_c': 'temp_c', 'precip_mm': 'precip_mm',
-        'wind_kph': 'wind_kph', 'humidity': 'humidity', 'cloud': 'cloud_cover'
-    }
-    weather_df['condition_text'] = weather_df['condition'].apply(lambda x: x.get('text') if isinstance(x, dict) else None)
-    
-    relevant_weather_cols = list(feature_map.keys()) + ['condition_text']
-    weather_df = weather_df[[col for col in relevant_weather_cols if col in weather_df.columns]].rename(columns=feature_map)
-    
     if timestamp_col not in target_timestamps_df.columns:
         logger.error(f"Target timestamps DataFrame must have the column '{timestamp_col}'.")
         return pd.DataFrame(index=target_timestamps_df.index)
@@ -218,8 +399,13 @@ def create_weather_features(weather_data: dict, target_timestamps_df: pd.DataFra
     
     merged_features = merged_features.set_index(target_df_sorted.index).reindex(target_timestamps_df.index)
 
-    # Define expected weather feature columns
-    expected_weather_feature_cols = ['temp_c', 'precip_mm', 'wind_kph', 'humidity', 'cloud_cover', 'condition_text']
+    # Define expected weather feature columns (expanded for Open-Meteo)
+    expected_weather_feature_cols = [
+        'temp_c', 'precip_mm', 'wind_kph', 'humidity', 'cloud_cover', 
+        'condition_text', 'pressure_hpa', 'weather_code', 'sunshine_duration_min',
+        'weather_severity', 'is_thunderstorm', 'is_adverse_weather'
+    ]
+    
     # Select only these columns if they exist in merged_features
     final_weather_cols = [col for col in expected_weather_feature_cols if col in merged_features.columns]
     final_weather_features = merged_features[final_weather_cols]
@@ -542,7 +728,7 @@ def build_all_features():
     logger.info("Starting feature building process...")
 
     # --- Load Base Parking Data ---
-    base_parking_data_path = PROCESSED_DATA_DIR / "parking_predictions_with_pois.parquet" 
+    base_parking_data_path = PROCESSED_DATA_DIR / "pois" / "parking_predictions_with_pois.parquet" 
     logger.info(f"Attempting to load base parking data from: {base_parking_data_path}")
     
     try:
@@ -604,9 +790,25 @@ def build_all_features():
 
 
     # --- Weather Features ---
-    weather_data_path = RAW_DATA_DIR / "weather" / "realtime_weather.json"
-    weather_data = load_data(weather_data_path, file_type='json')
-    if weather_data:
+    # Try to load Open-Meteo weather data (priority: forecast_weather.csv, then historical_weather_recent.csv, then current_weather.json)
+    weather_data = None
+    weather_data_paths = [
+        (RAW_DATA_DIR / "weather" / "forecast_weather.csv", "csv"),
+        (RAW_DATA_DIR / "weather" / "historical_weather_recent.csv", "csv"),
+        (RAW_DATA_DIR / "weather" / "current_weather.json", "json"),
+        (RAW_DATA_DIR / "weather" / "realtime_weather.json", "json")  # Legacy fallback
+    ]
+    
+    for weather_path, file_type in weather_data_paths:
+        if weather_path.exists():
+            logger.info(f"Loading weather data from: {weather_path}")
+            weather_data = load_data(weather_path, file_type=file_type)
+            if weather_data is not None:
+                break
+            else:
+                logger.warning(f"Failed to load weather data from {weather_path}")
+    
+    if weather_data is not None:
         # Pass DataFrame with original index and the timestamp column
         # Pass DataFrame indexed by main_id_column
         weather_features = create_weather_features(weather_data, parking_gdf_indexed[[timestamp_col_for_features]], timestamp_col=timestamp_col_for_features)
@@ -614,7 +816,7 @@ def build_all_features():
             save_data(weather_features.reset_index(), PROCESSED_DATA_DIR / "weather_features_set.parquet")
             parking_gdf_indexed = parking_gdf_indexed.join(weather_features, how='left', rsuffix='_weather')
     else:
-        logger.warning("Weather data not found or failed to load. Skipping weather features.")
+        logger.warning("No weather data found. Skipping weather features.")
 
     # --- Event Features ---
     events_data_path = RAW_DATA_DIR / "events" / "cultural_events.csv"
