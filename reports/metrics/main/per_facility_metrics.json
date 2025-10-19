@@ -1,0 +1,5 @@
+{
+  "note": "Per-facility metrics require parking_id data preservation",
+  "overall_macro_f1": 0.7143843327858269,
+  "overall_accuracy": 0.710146324806837
+}

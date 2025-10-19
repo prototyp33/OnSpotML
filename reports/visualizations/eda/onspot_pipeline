@@ -1,0 +1,11 @@
+digraph {
+	A [label="Data Sources"]
+	B [label=Preprocessing]
+	C [label="Feature Engineering"]
+	D [label="Model Training"]
+	E [label=Prediction]
+	A -> B
+	B -> C
+	C -> D
+	D -> E
+}

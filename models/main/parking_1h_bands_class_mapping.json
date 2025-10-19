@@ -1,0 +1,56 @@
+{
+  "0": {
+    "label": "Empty",
+    "range": [
+      0,
+      10
+    ],
+    "description": "0-10% occupancy",
+    "color": "green"
+  },
+  "1": {
+    "label": "Very Low",
+    "range": [
+      10,
+      30
+    ],
+    "description": "10-30% occupancy",
+    "color": "lightgreen"
+  },
+  "2": {
+    "label": "Low",
+    "range": [
+      30,
+      50
+    ],
+    "description": "30-50% occupancy",
+    "color": "yellow"
+  },
+  "3": {
+    "label": "Medium",
+    "range": [
+      50,
+      70
+    ],
+    "description": "50-70% occupancy",
+    "color": "orange"
+  },
+  "4": {
+    "label": "High",
+    "range": [
+      70,
+      90
+    ],
+    "description": "70-90% occupancy",
+    "color": "red"
+  },
+  "5": {
+    "label": "Full",
+    "range": [
+      90,
+      100
+    ],
+    "description": "90-100% occupancy",
+    "color": "darkred"
+  }
+}

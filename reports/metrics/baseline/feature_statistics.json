@@ -1,0 +1,35 @@
+{
+  "temporal": {
+    "count": 9,
+    "missing_rate": 0.0,
+    "unique_values": 5.888888888888889,
+    "dtypes": {
+      "float64": "6",
+      "int64": "3"
+    }
+  },
+  "lag": {
+    "count": 6,
+    "missing_rate": 0.0,
+    "unique_values": 7.0,
+    "dtypes": {
+      "float64": "6"
+    }
+  },
+  "weather": {
+    "count": 1,
+    "missing_rate": 0.0,
+    "unique_values": 3.0,
+    "dtypes": {
+      "float64": "1"
+    }
+  },
+  "events": {
+    "count": 1,
+    "missing_rate": 0.0,
+    "unique_values": 1.0,
+    "dtypes": {
+      "int64": "1"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+    "average_accuracy": 0.718925,
+    "average_f1_weighted": 0.7207420673288097,
+    "std_accuracy": 0.037022110623247825,
+    "std_f1_weighted": 0.0367696884051933,
+    "fold_metrics": [
+        {
+            "fold": 1,
+            "accuracy": 0.70654,
+            "f1_weighted": 0.7087365662775532,
+            "classification_report": "              precision    recall  f1-score   support\n\n           0       0.82      0.83      0.83      8972\n           1       0.73      0.74      0.73     13457\n           2       0.73      0.70      0.72     14847\n           3       0.29      0.35      0.32      3127\n           4       0.29      0.31      0.30      2079\n           5       0.49      0.42      0.45      2850\n           6       0.98      0.98      0.98      4668\n\n    accuracy                           0.71     50000\n   macro avg       0.62      0.62      0.62     50000\nweighted avg       0.71      0.71      0.71     50000\n"
+        },
+        {
+            "fold": 2,
+            "accuracy": 0.7796,
+            "f1_weighted": 0.7807660333895413,
+            "classification_report": "              precision    recall  f1-score   support\n\n           0       0.86      0.89      0.88     11132\n           1       0.72      0.72      0.72      9893\n           2       0.72      0.67      0.69     10382\n           3       0.40      0.48      0.44      3009\n           4       0.25      0.27      0.26      1329\n           5       0.47      0.42      0.45      1577\n           6       1.00      1.00      1.00     12678\n\n    accuracy                           0.78     50000\n   macro avg       0.63      0.63      0.63     50000\nweighted avg       0.78      0.78      0.78     50000\n"
+        },
+        {
+            "fold": 3,
+            "accuracy": 0.7103,
+            "f1_weighted": 0.7126724849704109,
+            "classification_report": "              precision    recall  f1-score   support\n\n           0       0.91      0.91      0.91     19224\n           1       0.68      0.69      0.69      9791\n           2       0.69      0.61      0.65     11316\n           3       0.37      0.44      0.40      3956\n           4       0.29      0.30      0.30      2664\n           5       0.56      0.56      0.56      2975\n           6       0.69      0.80      0.74        74\n\n    accuracy                           0.71     50000\n   macro avg       0.60      0.62      0.61     50000\nweighted avg       0.72      0.71      0.71     50000\n"
+        },
+        {
+            "fold": 4,
+            "accuracy": 0.67926,
+            "f1_weighted": 0.6807931846777334,
+            "classification_report": "              precision    recall  f1-score   support\n\n           0       0.93      0.93      0.93     11458\n           1       0.78      0.82      0.80     11298\n           2       0.70      0.59      0.64     12315\n           3       0.38      0.51      0.44      4997\n           4       0.41      0.38      0.40      5258\n           5       0.47      0.46      0.46      4628\n           6       0.55      0.78      0.64        46\n\n    accuracy                           0.68     50000\n   macro avg       0.60      0.64      0.62     50000\nweighted avg       0.69      0.68      0.68     50000\n"
+        }
+    ],
+    "overall_classification_report": "              precision    recall  f1-score   support\n\n           0       0.89      0.90      0.89     50786\n           1       0.73      0.74      0.74     44439\n           2       0.71      0.65      0.68     48860\n           3       0.36      0.46      0.40     15089\n           4       0.34      0.34      0.34     11330\n           5       0.50      0.47      0.48     12030\n           6       0.99      0.99      0.99     17466\n\n    accuracy                           0.72    200000\n   macro avg       0.65      0.65      0.65    200000\nweighted avg       0.72      0.72      0.72    200000\n"
+}
