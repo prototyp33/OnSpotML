@@ -98,6 +98,22 @@ def create_target_variable(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
+def bin_occupancy_percentage_to_class(occupancy_percentage: pd.Series) -> pd.Series:
+    """
+    Bin a percentage occupancy series into the standard 6 classes.
+    Uses the same boundaries as create_target_variable for consistency.
+    Returns a nullable integer Series in [0..5] (pd.Int64Dtype) to allow NaNs pre-drop.
+    """
+    class_boundaries = [0, 10, 30, 50, 70, 90, 100]
+    classes = pd.cut(
+        occupancy_percentage,
+        bins=class_boundaries,
+        labels=range(6),
+        include_lowest=True
+    )
+    # Use nullable integer dtype to safely handle NaNs before explicit dropping/casting
+    return classes.astype('Int64')
+
 def validate_target_variable(df: pd.DataFrame) -> None:
     """
     Validate the target variable creation.

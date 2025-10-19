@@ -13,7 +13,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Configure OSMnx
-ox.config(use_cache=True, log_console=True)
+# ox.config(use_cache=True, log_console=True) # Deprecated
+ox.settings.use_cache = True
+ox.settings.log_console = True
 
 # Constants
 METERS_PER_PARKING_SPOT = 5.0  # Standard parallel parking spot length
@@ -28,9 +30,9 @@ POI_TAGS = {
 }
 
 # File paths
-INPUT_FILE = '../data/processed/parking_predictions_processed.parquet'
-RAW_JSON_FILE = '../data/raw/parking_predictions_corrected.json'
-OUTPUT_FILE = '../data/processed/parking_predictions_phase1_enriched.parquet'
+INPUT_FILE = 'data/processed/parking_predictions_processed.parquet'
+RAW_JSON_FILE = 'data/raw/parking_predictions_corrected.json'
+OUTPUT_FILE = 'data/processed/parking_predictions_phase1_enriched.parquet'
 
 def load_data():
     """Load and prepare the base data for feature engineering."""
@@ -48,18 +50,23 @@ def load_data():
     static_data = []
     for feature in features:
         props = feature['properties']
-        geom = feature['geometry']
+        geom_dict = feature['geometry']
+        # Convert dict geometry to shapely LineString immediately
+        if geom_dict['type'] == 'MultiLineString':
+            line = LineString(geom_dict['coordinates'][0])
+        else:
+            line = LineString(geom_dict['coordinates'])
+
         static_data.append({
             'ID_TRAMO': props['ID_TRAMO'],
             'TRAMO': props['TRAMO'],
             'TIPO': props['TIPO'],
             'TARIFA': props['TARIFA'],
             'HORARIO': props['HORARIO'],
-            'geometry': geom
+            'geometry': line
         })
     
-    gdf_static = gpd.GeoDataFrame(static_data)
-    gdf_static['geometry'] = gdf_static['geometry'].apply(lambda x: LineString(x['coordinates']))
+    gdf_static = gpd.GeoDataFrame(static_data, geometry='geometry')
     gdf_static.set_crs(epsg=4326, inplace=True)
     
     return df_pred, gdf_static
@@ -216,8 +223,14 @@ def parse_zone_properties(gdf):
 
 def main():
     # Load data
-    print("Loading data...")
+    print("Loading data…")
     df_predictions, gdf_static = load_data()
+    
+    # Ensure predictions table has no stale geometry column that would
+    # overwrite the Shapely geometry we are about to merge in.
+    if 'geometry' in df_predictions.columns:
+        df_predictions = df_predictions.drop(columns='geometry')
+    
     print(f"Loaded {len(df_predictions):,} predictions and {len(gdf_static)} static records.")
     
     # Calculate capacity
@@ -253,24 +266,31 @@ def main():
         'horario_is_24h'
     ] + [col for col in gdf_static.columns if col.startswith('poi_')]
     
-    # Join features to predictions
-    df_enriched = df_predictions.merge(
+    # Final merge
+    df_enriched = pd.merge(
+        df_predictions,
         gdf_static[feature_cols],
         on='ID_TRAMO',
         how='left'
     )
     
-    # Add hour of day feature
-    df_enriched['hour'] = df_enriched['timestamp'].dt.hour
-    
-    # Save enriched dataset
-    print(f"\nSaving enriched dataset to {OUTPUT_FILE}")
-    print(f"Final shape: {df_enriched.shape}")
-    print("\nFeature summary:")
-    print(df_enriched.info())
-    
-    df_enriched.to_parquet(OUTPUT_FILE, index=False)
-    print("\nFeature engineering completed successfully!")
+    # Add back the geometry column from the static data
+    df_enriched = df_enriched.merge(
+        gdf_static[['ID_TRAMO', 'geometry']],
+        on='ID_TRAMO',
+        how='left'
+    )
+
+    # Convert the final merged DataFrame back to a GeoDataFrame
+    gdf_enriched = gpd.GeoDataFrame(df_enriched, geometry='geometry', crs="EPSG:4326")
+
+    # Save the enriched dataset as a proper GeoParquet file
+    print(f"\nSaving enriched dataset to {OUTPUT_FILE}...")
+    try:
+        gdf_enriched.to_parquet(OUTPUT_FILE, index=False)
+        print("Enriched dataset saved successfully as GeoParquet.")
+    except Exception as e:
+        print(f"Error saving GeoParquet file: {e}")
 
 if __name__ == "__main__":
     main() 

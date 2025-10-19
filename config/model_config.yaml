@@ -1,0 +1,63 @@
+# Model training configuration
+
+# Data paths
+data_path: 'data/processed/features/features_master_table_historical.parquet'
+model_path: 'models/main/hierarchical_model.pkl'
+
+# Feature engineering configuration
+feature_engineering:
+  scale_features: true
+  parallel_processing:
+    enabled: false
+  event_features:
+    radii: [500, 1000, 2000]  # meters
+  poi_features:
+    radii: [100, 200, 500]  # meters
+    categories:
+      - restaurant
+      - shop
+      - entertainment
+      - transport
+      - education
+      - health
+      - leisure
+      - tourism
+      - parking
+      - finance
+
+# Model configuration
+model:
+  exclude_valor: true
+
+  coarse_classifier:
+    n_estimators: 1000
+    learning_rate: 0.1
+    num_leaves: 31
+    class_weight: 'balanced'
+    random_state: 42
+  
+  fine_classifier:
+    n_estimators: 500
+    learning_rate: 0.05
+    num_leaves: 31
+    class_weight: 'balanced'
+    random_state: 42
+
+# Training configuration
+training:
+  test_size: 0.2
+  random_state: 42
+  stratify: true
+  early_stopping_rounds: 50
+  validation_size: 0.2
+
+# Evaluation configuration
+evaluation:
+  metrics:
+    - accuracy
+    - f1_score
+    - precision
+    - recall
+  plot_confusion_matrix: true
+  plot_feature_importance: true
+  save_predictions: true 

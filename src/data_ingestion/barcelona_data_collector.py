@@ -12,7 +12,8 @@ import json
 from dotenv import load_dotenv
 import numpy as np
 from shapely.geometry import LineString
-from open_meteo_fetcher import OpenMeteoFetcher  # Import our new weather fetcher
+# Local import within the src package
+from src.data_ingestion.open_meteo_fetcher import OpenMeteoFetcher  # Import our new weather fetcher
 
 # Configure logging
 logging.basicConfig(

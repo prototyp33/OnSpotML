@@ -9,6 +9,7 @@ on:
 env:
   PYTHONPATH: ${{ github.workspace }}
   PIP_CACHE_DIR: ${{ github.workspace }}/.pip-cache
+  MIN_COVERAGE: 80  # Minimum test coverage percentage
 
 jobs:
   test:
@@ -42,6 +43,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -e ".[dev]"
+        pip install pre-commit mypy types-requests types-PyYAML
+        
+    - name: Run pre-commit hooks
+      run: |
+        pre-commit install
+        pre-commit run --all-files
         
     - name: Run security checks
       run: |
@@ -57,9 +64,21 @@ jobs:
       run: |
         black . --check
         
+    - name: Run static type checking with mypy
+      run: |
+        mypy src/
+        
     - name: Test with pytest
       run: |
         pytest --cov=./ --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml
+        
+    - name: Check coverage threshold
+      run: |
+        COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(float(root.attrib['line-rate']) * 100)")
+        if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+          echo "Test coverage ($COVERAGE%) is below the minimum required ($MIN_COVERAGE%)"
+          exit 1
+        fi
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

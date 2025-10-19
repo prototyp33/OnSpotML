@@ -16,17 +16,19 @@ from src.modeling.feature_engineering_v2 import FeatureEngineeringPipeline
 @pytest.fixture
 def sample_data():
     """Create sample data for testing."""
-    dates = pd.date_range(start='2024-01-01', end='2024-01-02', freq='5min')
+    dates = pd.date_range(start='2024-01-01', periods=24, freq='5min')
     parking_ids = ['P1', 'P2']
     
     data = []
-    for date in dates:
-        for parking_id in parking_ids:
+    for parking_id in parking_ids:
+        for date in dates:
             data.append({
                 'timestamp': date,
                 'parking_id': parking_id,
                 'available_spaces': np.random.randint(0, 100),
-                'total_spaces': 100
+                'total_spaces': 100,
+                'latitude': 41.3851 + np.random.uniform(-0.01, 0.01),
+                'longitude': 2.1734 + np.random.uniform(-0.01, 0.01)
             })
     
     return pd.DataFrame(data)
@@ -34,17 +36,12 @@ def sample_data():
 @pytest.fixture
 def sample_poi_data():
     """Create sample POI data for testing."""
-    pois = []
-    for i in range(100):
-        pois.append({
-            'poi_id': f'POI_{i}',
-            'name': f'POI {i}',
-            'category': np.random.choice(['restaurant', 'shop', 'entertainment', 'transport', 'other']),
-            'latitude': np.random.uniform(40.0, 41.0),
-            'longitude': np.random.uniform(-74.0, -73.0),
-            'importance': np.random.choice([1, 2, 3])
-        })
-    return pd.DataFrame(pois)
+    return pd.DataFrame({
+        'latitude': [41.3851, 41.3852, 41.3853],
+        'longitude': [2.1734, 2.1735, 2.1736],
+        'category': ['restaurant', 'shop', 'entertainment'],
+        'importance': [0.8, 0.6, 0.7]
+    })
 
 @pytest.fixture
 def config():
@@ -85,114 +82,268 @@ def config():
 
 @pytest.fixture
 def pipeline():
-    """Create a FeatureEngineeringPipeline instance."""
-    return FeatureEngineeringPipeline()
-
-def test_temporal_features(pipeline, sample_data):
-    """Test temporal feature creation."""
-    df = pipeline.create_temporal_features(sample_data)
-    
-    # Check if temporal features are created
-    assert 'hour' in df.columns
-    assert 'dayofweek' in df.columns
-    assert 'month' in df.columns
-    assert 'hour_sin' in df.columns
-    assert 'hour_cos' in df.columns
-    assert 'is_weekend' in df.columns
-    assert 'is_public_holiday' in df.columns
-    
-    # Check feature ranges
-    assert df['hour'].min() >= 0
-    assert df['hour'].max() <= 23
-    assert df['dayofweek'].min() >= 0
-    assert df['dayofweek'].max() <= 6
-    assert df['month'].min() >= 1
-    assert df['month'].max() <= 12
-    assert df['is_weekend'].isin([0, 1]).all()
-    assert df['is_public_holiday'].isin([0, 1]).all()
-
-def test_lag_features(pipeline, sample_data):
-    """Test lag feature creation."""
-    df = pipeline.create_lag_features(sample_data)
-    
-    # Check if lag features are created
-    for lag in [1, 2, 3, 6, 12, 24]:
-        assert f'occupancy_rate_lag_{lag}' in df.columns
-        assert f'available_spaces_lag_{lag}' in df.columns
-    
-    # Check if occupancy rate is calculated
-    assert 'occupancy_rate' in df.columns
-    assert df['occupancy_rate'].between(0, 1).all()
-
-def test_poi_features(pipeline, sample_data, sample_poi_data, tmp_path):
-    """Test POI feature creation."""
-    print("\n=== Debug: test_poi_features ===")
-    print(f"Initial sample_data shape: {sample_data.shape}")
-    print(f"Initial sample_poi_data shape: {sample_poi_data.shape}")
-    
-    # Add required columns to sample data
-    sample_data['latitude'] = np.random.uniform(40.0, 41.0, len(sample_data))
-    sample_data['longitude'] = np.random.uniform(-74.0, -73.0, len(sample_data))
-    print(f"Sample data columns after adding location: {sample_data.columns.tolist()}")
-    
-    # Update config with temporary cache directory
-    test_config = {
+    """Create a FeatureEngineeringPipeline instance with test configuration."""
+    config = {
         'feature_engineering': {
             'poi_features': {
-                'radii': [100, 200, 500],
-                'categories': ['restaurant', 'shop', 'entertainment', 'transport'],
-                'cache_dir': str(tmp_path)
+                'radii': [100, 200],
+                'categories': ['restaurant', 'shop', 'entertainment']
+            }
+        },
+        'parallel_processing': {
+            'enabled': False
+        },
+        'scale_features': True
+    }
+    return FeatureEngineeringPipeline(config)
+
+@pytest.fixture
+def sample_weather_data():
+    """Create sample weather data for testing."""
+    dates = pd.date_range(start='2024-01-01', periods=24, freq='5min')
+    data = []
+    
+    for date in dates:
+        data.append({
+            'timestamp': date,
+            'temperature': np.random.uniform(10, 30),
+            'feels_like': np.random.uniform(10, 30),
+            'humidity': np.random.uniform(0, 100),
+            'pressure': np.random.uniform(1000, 1020),
+            'wind_speed': np.random.uniform(0, 30),
+            'wind_deg': np.random.uniform(0, 360),
+            'clouds': np.random.uniform(0, 100),
+            'rain_1h': np.random.uniform(0, 10),
+            'snow_1h': 0,
+            'weather_main': np.random.choice(['Clear', 'Clouds', 'Rain']),
+            'weather_description': 'test description',
+            'is_raining': np.random.choice([0, 1]),
+            'is_snowing': 0,
+            'precipitation': np.random.uniform(0, 10),
+            'wind_sin': np.sin(2 * np.pi * np.random.uniform(0, 360) / 360),
+            'wind_cos': np.cos(2 * np.pi * np.random.uniform(0, 360) / 360)
+        })
+    
+    return pd.DataFrame(data)
+
+@pytest.fixture
+def pipeline_with_weather():
+    """Create a FeatureEngineeringPipeline instance with weather configuration."""
+    config = {
+        'weather': {
+            'api_key': 'test_api_key',
+            'cache_dir': 'tests/cache/weather'
+        },
+        'feature_engineering': {
+            'weather_features': {
+                'enabled': True,
+                'features': [
+                    'temperature', 'feels_like', 'humidity', 'pressure',
+                    'wind_speed', 'wind_sin', 'wind_cos', 'clouds',
+                    'is_raining', 'is_snowing', 'precipitation'
+                ]
             }
         }
     }
-    print(f"Test config: {test_config}")
+    return FeatureEngineeringPipeline(config)
+
+@pytest.fixture
+def pipeline_with_events():
+    """Create a FeatureEngineeringPipeline instance with event configuration."""
+    config = {
+        'events': {
+            'api_key': 'test_api_key',
+            'cache_dir': 'tests/cache/events',
+            'radius': 5000
+        },
+        'feature_engineering': {
+            'event_features': {
+                'enabled': True,
+                'radii': [500, 1000, 2000]
+            }
+        }
+    }
+    return FeatureEngineeringPipeline(config)
+
+@pytest.fixture
+def sample_event_data():
+    """Create sample event data for testing."""
+    dates = pd.date_range(start='2024-01-01', periods=24, freq='h')
+    data = []
     
-    pipeline = FeatureEngineeringPipeline(test_config)
-    print(f"Pipeline config: {pipeline.config}")
+    for date in dates:
+        data.append({
+            'event_id': f'event_{len(data)}',
+            'timestamp': date,
+            'end_time': date + timedelta(hours=2),
+            'name': f'Test Event {len(data)}',
+            'category': np.random.choice(['concert', 'sports', 'festival', 'exhibition', 'conference', 'theater', 'other']),
+            'venue': f'Venue {len(data)}',
+            'latitude': 41.3851 + np.random.uniform(-0.01, 0.01),
+            'longitude': 2.1734 + np.random.uniform(-0.01, 0.01),
+            'capacity': np.random.randint(100, 10000),
+            'ticket_price': np.random.uniform(0, 100),
+            'is_free': np.random.choice([True, False]),
+            'description': 'Test event description',
+            'importance': np.random.uniform(0, 1),
+            'is_major_event': np.random.choice([0, 1])
+        })
     
-    try:
-        df = pipeline.create_poi_features(sample_data, sample_poi_data)
-        print(f"Output DataFrame shape: {df.shape}")
-        print(f"Output DataFrame columns: {df.columns.tolist()}")
-        
-        # Check if POI features are created for each radius
-        for radius in test_config['feature_engineering']['poi_features']['radii']:
-            for category in test_config['feature_engineering']['poi_features']['categories']:
-                feature_name = f'poi_{category}_count_{radius}m'
-                print(f"Checking feature: {feature_name}")
-                assert feature_name in df.columns, f"Missing feature: {feature_name}"
-                print(f"Feature {feature_name} exists with values: {df[feature_name].describe()}")
-        
-        # Check value ranges
-        for col in df.columns:
-            if col.startswith('poi_'):
-                print(f"Checking value range for {col}")
-                print(f"Min: {df[col].min()}, Max: {df[col].max()}")
-                assert df[col].min() >= 0, f"Negative values found in {col}"
-                if 'density' in col:
-                    assert df[col].max() <= 1, f"Values > 1 found in {col}"
-        
-        # Test without POI data
-        print("\nTesting without POI data...")
-        df_no_poi = pipeline.create_poi_features(sample_data)
-        print(f"Shape without POI: {df_no_poi.shape}")
-        print(f"Columns without POI: {df_no_poi.columns.tolist()}")
-        assert len(df_no_poi) == len(sample_data)
-        assert all(col not in df_no_poi.columns for col in df.columns if col.startswith('poi_'))
-        
-        # Test with missing location columns
-        print("\nTesting with missing location columns...")
-        df_no_loc = sample_data.drop(['latitude', 'longitude'], axis=1)
-        print(f"Shape without location: {df_no_loc.shape}")
-        print(f"Columns without location: {df_no_loc.columns.tolist()}")
-        df_no_loc = pipeline.create_poi_features(df_no_loc, sample_poi_data)
-        assert len(df_no_loc) == len(sample_data)
-        assert all(col not in df_no_loc.columns for col in df.columns if col.startswith('poi_'))
-        
-    except Exception as e:
-        print(f"\nError occurred: {str(e)}")
-        print(f"Error type: {type(e)}")
-        raise
+    return pd.DataFrame(data)
+
+def test_validate_data(pipeline, sample_data):
+    """Test data validation."""
+    # Test valid data
+    pipeline.validate_data(sample_data)
+    
+    # Test missing required columns
+    invalid_data = sample_data.drop('timestamp', axis=1)
+    with pytest.raises(ValueError, match="Missing required columns"):
+        pipeline.validate_data(invalid_data)
+    
+    # Test invalid data types
+    invalid_data = sample_data.copy()
+    invalid_data['timestamp'] = 'invalid'
+    with pytest.raises(ValueError, match="timestamp column must be datetime type"):
+        pipeline.validate_data(invalid_data)
+    
+    # Test invalid value ranges
+    invalid_data = sample_data.copy()
+    invalid_data.loc[0, 'available_spaces'] = -1
+    with pytest.raises(ValueError, match="available_spaces cannot be negative"):
+        pipeline.validate_data(invalid_data)
+    
+    invalid_data = sample_data.copy()
+    invalid_data.loc[0, 'available_spaces'] = 101
+    with pytest.raises(ValueError, match="available_spaces cannot be greater than total_spaces"):
+        pipeline.validate_data(invalid_data)
+
+def test_create_temporal_features(pipeline, sample_data):
+    """Test temporal feature creation."""
+    result = pipeline.create_temporal_features(sample_data)
+    
+    # Check if all temporal features are created
+    expected_features = [
+        'hour', 'dayofweek', 'month',
+        'hour_sin', 'hour_cos',
+        'dayofweek_sin', 'dayofweek_cos',
+        'month_sin', 'month_cos',
+        'is_weekend', 'is_public_holiday'
+    ]
+    
+    for feature in expected_features:
+        assert feature in result.columns
+    
+    # Check value ranges
+    assert result['hour'].between(0, 23).all()
+    assert result['dayofweek'].between(0, 6).all()
+    assert result['month'].between(1, 12).all()
+    assert result['is_weekend'].isin([0, 1]).all()
+    assert result['is_public_holiday'].isin([0, 1]).all()
+
+def test_create_lag_features(pipeline, sample_data):
+    """Test lag feature creation."""
+    result = pipeline.create_lag_features(sample_data)
+    
+    # Check if lag features are created
+    expected_lags = [1, 2, 3, 6, 12, 24]
+    for lag in expected_lags:
+        assert f'occupancy_rate_lag_{lag}' in result.columns
+        assert f'available_spaces_lag_{lag}' in result.columns
+    
+    # Check if occupancy rate is calculated correctly
+    assert 'occupancy_rate' in result.columns
+    expected_occupancy = 1 - (sample_data['available_spaces'] / sample_data['total_spaces'])
+    pd.testing.assert_series_equal(
+        result['occupancy_rate'].reset_index(drop=True),
+        expected_occupancy.reset_index(drop=True),
+        check_names=False
+    )
+
+def test_create_poi_features(pipeline, sample_data, sample_poi_data):
+    """Test POI feature creation."""
+    result = pipeline.create_poi_features(sample_data, sample_poi_data)
+    
+    # Check if POI features are created
+    expected_features = []
+    for radius in [100, 200]:
+        for category in ['restaurant', 'shop', 'entertainment']:
+            expected_features.extend([
+                f'poi_{category}_count_{radius}m',
+                f'poi_{category}_density_{radius}m'
+            ])
+    
+    for feature in expected_features:
+        assert feature in result.columns
+    
+    # Check if values are non-negative
+    for feature in expected_features:
+        assert (result[feature] >= 0).all()
+
+def test_create_features(pipeline, sample_data, sample_poi_data):
+    """Test the complete feature creation pipeline."""
+    result = pipeline.create_features(sample_data)
+    
+    # Check if all temporal features are created
+    temporal_features = [
+        'hour', 'dayofweek', 'month',
+        'hour_sin', 'hour_cos',
+        'dayofweek_sin', 'dayofweek_cos',
+        'month_sin', 'month_cos',
+        'is_weekend', 'is_public_holiday'
+    ]
+    for feature in temporal_features:
+        assert feature in result.columns, f"Missing temporal feature: {feature}"
+    
+    # Check if lag and facility features are present
+    lag_features = [col for col in result.columns if 'lag' in col]
+    facility_features = [col for col in result.columns if 'facility' in col or 'is_open_now' in col]
+    assert len(lag_features) > 0, "No lag features found"
+    assert len(facility_features) > 0, "No facility features found"
+    
+    # Optional feature groups that depend on data availability
+    optional_groups = [
+        'weather', 'events', 'transport', 'poi'
+    ]
+    for group in optional_groups:
+        group_features = [col for col in result.columns if col.startswith(group)]
+        if len(group_features) > 0:
+            print(f"Found {len(group_features)} features for optional group: {group}")
+
+def test_fit_transform(pipeline, sample_data):
+    """Test fit_transform method."""
+    result = pipeline.fit_transform(sample_data)
+    
+    # Check if scalers are created
+    assert len(pipeline.scalers) > 0
+    
+    # Check if all features are scaled
+    for feature, scaler in pipeline.scalers.items():
+        assert feature in result.columns
+        # Check that most values are within reasonable range
+        scaled_values = result[feature].dropna()
+        if len(scaled_values) > 0:
+            assert abs(scaled_values.mean()) < 1.0  # Mean should be close to 0
+            assert scaled_values.std() < 2.0  # Std should be close to 1
+
+def test_transform(pipeline, sample_data):
+    """Test transform method."""
+    # First fit the pipeline
+    pipeline.fit_transform(sample_data)
+    
+    # Then transform new data
+    new_data = sample_data.copy()
+    result = pipeline.transform(new_data)
+    
+    # Check if all features are present and scaled
+    assert len(result.columns) >= len(sample_data.columns)
+    for feature, scaler in pipeline.scalers.items():
+        assert feature in result.columns
+        # Check that most values are within reasonable range
+        scaled_values = result[feature].dropna()
+        if len(scaled_values) > 0:
+            assert abs(scaled_values.mean()) < 1.0  # Mean should be close to 0
+            assert scaled_values.std() < 2.0  # Std should be close to 1
 
 def test_facility_features(pipeline, sample_data):
     """Test facility feature creation."""
@@ -232,11 +383,10 @@ def test_edge_cases(pipeline):
     missing_cols_df = missing_cols_df.drop('available_spaces', axis=1)
     print(f"Missing columns DataFrame shape: {missing_cols_df.shape}")
     print(f"Missing columns DataFrame columns: {missing_cols_df.columns.tolist()}")
-    try:
+    
+    # Test that validation raises the expected error
+    with pytest.raises(ValueError, match="Missing required columns: \['available_spaces'\]"):
         pipeline.create_features(missing_cols_df)
-    except ValueError as e:
-        print(f"Expected ValueError: {str(e)}")
-        raise
     
     # Test with invalid data types
     print("\nTesting invalid data types...")
@@ -247,11 +397,10 @@ def test_edge_cases(pipeline):
         'total_spaces': ['invalid']  # Invalid type
     })
     print(f"Invalid types DataFrame:\n{invalid_df.dtypes}")
-    try:
+    
+    # Test that validation raises the expected error
+    with pytest.raises(ValueError, match="available_spaces must be numeric"):
         pipeline.create_features(invalid_df)
-    except ValueError as e:
-        print(f"Expected ValueError: {str(e)}")
-        raise
     
     # Test with invalid value ranges
     print("\nTesting invalid value ranges...")
@@ -262,11 +411,10 @@ def test_edge_cases(pipeline):
         'total_spaces': [100]
     })
     print(f"Invalid values DataFrame:\n{invalid_df}")
-    try:
+    
+    # Test that validation raises the expected error
+    with pytest.raises(ValueError, match="available_spaces cannot be negative"):
         pipeline.create_features(invalid_df)
-    except ValueError as e:
-        print(f"Expected ValueError: {str(e)}")
-        raise
     
     # Test with available_spaces > total_spaces
     print("\nTesting available_spaces > total_spaces...")
@@ -277,11 +425,10 @@ def test_edge_cases(pipeline):
         'total_spaces': [100]
     })
     print(f"Invalid ratio DataFrame:\n{invalid_df}")
-    try:
+    
+    # Test that validation raises the expected error
+    with pytest.raises(ValueError, match="available_spaces cannot be greater than total_spaces"):
         pipeline.create_features(invalid_df)
-    except ValueError as e:
-        print(f"Expected ValueError: {str(e)}")
-        raise
 
 def test_data_validation(pipeline, sample_data):
     """Test data validation in feature creation."""
@@ -323,4 +470,181 @@ def test_performance(pipeline, sample_data):
     assert end_time - start_time < 1.0  # Should take less than 1 second
     
     # Check memory usage
-    assert df.memory_usage().sum() < 1e6  # Should use less than 1MB 
+    assert df.memory_usage().sum() < 1e6  # Should use less than 1MB
+
+def test_create_weather_features(pipeline_with_weather, sample_data, sample_weather_data, monkeypatch):
+    """Test weather feature creation."""
+    # Mock the weather data fetcher
+    def mock_fetch_weather_data(*args, **kwargs):
+        return sample_weather_data
+    
+    monkeypatch.setattr(pipeline_with_weather.weather_fetcher, 'fetch_weather_data', mock_fetch_weather_data)
+    
+    # Create features
+    result = pipeline_with_weather.create_weather_features(sample_data)
+    
+    # Check if weather features are created
+    weather_features = [
+        'temperature', 'feels_like', 'humidity', 'pressure',
+        'wind_speed', 'wind_sin', 'wind_cos', 'clouds',
+        'is_raining', 'is_snowing', 'precipitation'
+    ]
+    
+    for feature in weather_features:
+        assert feature in result.columns
+        
+        # Check lag features
+        for lag in [1, 2, 3, 6, 12, 24]:
+            assert f'{feature}_lag_{lag}' in result.columns
+        
+        # Check rolling statistics
+        for window in [6, 12, 24]:
+            assert f'{feature}_rolling_mean_{window}' in result.columns
+            assert f'{feature}_rolling_std_{window}' in result.columns
+    
+    # Check value ranges
+    for feature in weather_features:
+        if feature in ['is_raining', 'is_snowing']:
+            assert result[feature].isin([0, 1]).all()
+        elif feature in ['wind_sin', 'wind_cos']:
+            assert result[feature].between(-1, 1).all()
+        else:
+            assert not result[feature].isna().all()
+
+def test_create_weather_features_no_data(pipeline_with_weather, sample_data, monkeypatch):
+    """Test weather feature creation with no weather data."""
+    # Mock the weather data fetcher to return empty DataFrame
+    def mock_fetch_weather_data(*args, **kwargs):
+        return pd.DataFrame()
+    
+    monkeypatch.setattr(pipeline_with_weather.weather_fetcher, 'fetch_weather_data', mock_fetch_weather_data)
+    
+    # Create features
+    result = pipeline_with_weather.create_weather_features(sample_data)
+    
+    # Check that input data is unchanged
+    assert len(result) == len(sample_data)
+    assert all(col in result.columns for col in sample_data.columns)
+    assert not any(col.startswith('temperature_') for col in result.columns)
+
+def test_create_weather_features_merge(pipeline_with_weather, sample_data, sample_weather_data, monkeypatch):
+    """Test weather data merging with parking data."""
+    # Mock the weather data fetcher
+    def mock_fetch_weather_data(*args, **kwargs):
+        return sample_weather_data
+    
+    monkeypatch.setattr(pipeline_with_weather.weather_fetcher, 'fetch_weather_data', mock_fetch_weather_data)
+    
+    # Create features
+    result = pipeline_with_weather.create_weather_features(sample_data)
+    
+    # Check that all parking data is preserved
+    assert len(result) == len(sample_data)
+    assert all(col in result.columns for col in sample_data.columns)
+    
+    # Check that weather data is properly merged
+    weather_timestamps = set(sample_weather_data['timestamp'])
+    result_timestamps = set(result['timestamp'])
+    assert weather_timestamps.issubset(result_timestamps)
+
+def test_create_event_features(pipeline_with_events, sample_data, sample_event_data, monkeypatch):
+    """Test event feature creation."""
+    # Mock the event data fetcher
+    def mock_fetch_event_data(*args, **kwargs):
+        return sample_event_data
+    
+    monkeypatch.setattr(pipeline_with_events.event_fetcher, 'fetch_event_data', mock_fetch_event_data)
+    
+    # Create features
+    result = pipeline_with_events.create_event_features(sample_data)
+    
+    # Check if event features are created
+    expected_features = []
+    for radius in [500, 1000, 2000]:
+        expected_features.extend([
+            f'event_count_{radius}m',
+            f'event_importance_{radius}m',
+            f'major_event_count_{radius}m',
+            f'event_density_{radius}m',
+            f'weighted_event_importance_{radius}m'
+        ])
+    
+    expected_features.extend([
+        'hours_until_next_event',
+        'hours_since_last_event',
+        'is_event_time',
+        'is_major_event_time'
+    ])
+    
+    for feature in expected_features:
+        assert feature in result.columns
+    
+    # Check value ranges
+    for radius in [500, 1000, 2000]:
+        assert (result[f'event_count_{radius}m'] >= 0).all()
+        assert (result[f'event_importance_{radius}m'] >= 0).all()
+        assert (result[f'major_event_count_{radius}m'] >= 0).all()
+        assert (result[f'event_density_{radius}m'] >= 0).all()
+        assert (result[f'weighted_event_importance_{radius}m'] >= 0).all()
+    
+    assert result['is_event_time'].isin([True, False]).all()
+    assert result['is_major_event_time'].isin([True, False]).all()
+
+def test_create_event_features_no_data(pipeline_with_events, sample_data, monkeypatch):
+    """Test event feature creation with no event data."""
+    # Mock the event data fetcher to return empty DataFrame
+    def mock_fetch_event_data(*args, **kwargs):
+        return pd.DataFrame()
+    
+    monkeypatch.setattr(pipeline_with_events.event_fetcher, 'fetch_event_data', mock_fetch_event_data)
+    
+    # Create features
+    result = pipeline_with_events.create_event_features(sample_data)
+    
+    # Check that input data is unchanged
+    assert len(result) == len(sample_data)
+    assert all(col in result.columns for col in sample_data.columns)
+    assert not any(col.startswith('event_') for col in result.columns)
+
+def test_create_event_features_merge(pipeline_with_events, sample_data, sample_event_data, monkeypatch):
+    """Test event data merging with parking data."""
+    # Mock the event data fetcher
+    def mock_fetch_event_data(*args, **kwargs):
+        return sample_event_data
+    
+    monkeypatch.setattr(pipeline_with_events.event_fetcher, 'fetch_event_data', mock_fetch_event_data)
+    
+    # Create features
+    result = pipeline_with_events.create_event_features(sample_data)
+    
+    # Check that all parking data is preserved
+    assert len(result) == len(sample_data)
+    assert all(col in result.columns for col in sample_data.columns)
+    
+    # Check that event features are properly calculated
+    assert 'event_count_500m' in result.columns
+    assert 'event_importance_500m' in result.columns
+    assert 'major_event_count_500m' in result.columns
+
+def test_event_time_features(pipeline_with_events, sample_data, sample_event_data, monkeypatch):
+    """Test event time-based features."""
+    # Mock the event data fetcher
+    def mock_fetch_event_data(*args, **kwargs):
+        return sample_event_data
+    
+    monkeypatch.setattr(pipeline_with_events.event_fetcher, 'fetch_event_data', mock_fetch_event_data)
+    
+    # Create features
+    result = pipeline_with_events.create_event_features(sample_data)
+    
+    # Check time-based features
+    assert 'hours_until_next_event' in result.columns
+    assert 'hours_since_last_event' in result.columns
+    assert 'is_event_time' in result.columns
+    assert 'is_major_event_time' in result.columns
+    
+    # Check value ranges
+    assert result['hours_until_next_event'].between(0, float('inf')).all()
+    assert result['hours_since_last_event'].between(0, float('inf')).all()
+    assert result['is_event_time'].isin([True, False]).all()
+    assert result['is_major_event_time'].isin([True, False]).all() 

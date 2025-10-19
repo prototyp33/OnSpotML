@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="8" failures="0" skipped="0" tests="8" time="2.089" timestamp="2025-07-01T13:18:33.099160" hostname="macbook-pro-3.home"><testcase classname="" name="tests.test_advanced_class_imbalance_handler" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_advanced_class_imbalance_handler.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_advanced_class_imbalance_handler.py:20: in &lt;module&gt;
+    from src.modeling.advanced_class_imbalance_handler import AdvancedClassImbalanceHandler
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.test_data_collector" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_data_collector.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_data_collector.py:15: in &lt;module&gt;
+    from data_ingestion.barcelona_data_collector import BarcelonaDataCollector
+src/data_ingestion/barcelona_data_collector.py:15: in &lt;module&gt;
+    from open_meteo_fetcher import OpenMeteoFetcher  # Import our new weather fetcher
+E   ModuleNotFoundError: No module named 'open_meteo_fetcher'</error></testcase><testcase classname="" name="tests.test_event_data_fetcher" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_event_data_fetcher.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_event_data_fetcher.py:11: in &lt;module&gt;
+    from src.data_ingestion.event_data_fetcher import EventDataFetcher
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.test_feature_engineering_v2" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_feature_engineering_v2.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_feature_engineering_v2.py:13: in &lt;module&gt;
+    from src.modeling.feature_engineering_v2 import FeatureEngineeringPipeline
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.test_train_baseline" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_train_baseline.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_train_baseline.py:7: in &lt;module&gt;
+    from src.modeling import train_baseline
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.test_train_baseline_integration" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_train_baseline_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_train_baseline_integration.py:7: in &lt;module&gt;
+    from src.modeling import train_baseline
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.test_weather_data_fetcher" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/test_weather_data_fetcher.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_weather_data_fetcher.py:11: in &lt;module&gt;
+    from src.data_ingestion.weather_data_fetcher import WeatherDataFetcher
+E   ModuleNotFoundError: No module named 'src'</error></testcase><testcase classname="" name="tests.benchmarks.test_data_collector_benchmark" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/adrianiraeguialvear/Desktop/OnSpotML_v2/tests/benchmarks/test_data_collector_benchmark.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/benchmarks/test_data_collector_benchmark.py:5: in &lt;module&gt;
+    from data_ingestion.barcelona_data_collector import BarcelonaDataCollector
+src/data_ingestion/barcelona_data_collector.py:15: in &lt;module&gt;
+    from open_meteo_fetcher import OpenMeteoFetcher  # Import our new weather fetcher
+E   ModuleNotFoundError: No module named 'open_meteo_fetcher'</error></testcase></testsuite></testsuites>
